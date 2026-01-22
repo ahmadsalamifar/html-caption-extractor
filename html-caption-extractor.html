@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Caption Extractor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-en: 'Inter', sans-serif;
+            --font-fa: 'Vazirmatn', sans-serif;
+        }
+        body { font-family: var(--font-en); }
+        .lang-fa { font-family: var(--font-fa); }
+        
+        .drop-zone {
+            transition: all 0.3s ease;
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23CBD5E1FF' stroke-width='2' stroke-dasharray='10%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        .drop-zone.active {
+            background-color: #EFF6FF;
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%233B82F6FF' stroke-width='2' stroke-dasharray='10%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        /* Spinner */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Language Toggle -->
+    <div class="absolute top-5 right-5">
+        <button id="langBtn" class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition text-sm font-semibold">
+            فارسی
+        </button>
+    </div>
+
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-8 text-center text-white">
+            <h1 class="text-3xl font-bold mb-2" data-key="title">HTML Caption Extractor</h1>
+            <p class="text-blue-100" data-key="subtitle">Extract data from Apify or any HTML table export easily.</p>
+        </div>
+
+        <div class="p-8">
+            <!-- Drop Zone -->
+            <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer mb-8 relative group hover:bg-gray-50">
+                <input type="file" id="fileInput" accept=".html, .htm" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                
+                <div class="pointer-events-none">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <p class="text-lg font-semibold text-gray-700 mb-1" data-key="dropTitle">Click or Drag HTML file here</p>
+                    <p class="text-sm text-gray-500" data-key="dropSub">Supports .html files</p>
+                    <p id="fileName" class="text-blue-600 font-bold mt-4 hidden"></p>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="extractBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span data-key="btnExtract">Extract Data</span>
+                </button>
+                
+                <button id="downloadBtn" class="hidden flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span data-key="btnDownload">Download CSV</span>
+                </button>
+            </div>
+
+            <!-- Output/Status -->
+            <div id="output" class="mt-6 p-4 rounded-lg text-center text-sm hidden"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+        <p class="text-gray-400 text-sm" data-key="footer">Client-side processing • No data sent to server</p>
+        <p class="text-gray-400 text-sm mt-2">
+            <span data-key="developedBy">Developed by</span> 
+            <a href="https://github.com/ahmadsalamifar/" target="_blank" class="text-blue-500 hover:text-blue-600 font-medium transition-colors">
+                Ahmad Salamifar
+            </a>
+        </p>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "HTML Caption Extractor",
+                subtitle: "Extract data from Apify or any HTML table export easily.",
+                dropTitle: "Click or Drag HTML file here",
+                dropSub: "Supports .html files",
+                btnExtract: "Extract Data",
+                btnDownload: "Download CSV",
+                footer: "Client-side processing • No data sent to server",
+                developedBy: "Developed by",
+                btnLang: "فارسی",
+                
+                // Messages
+                errorNoFile: "Please select a file first.",
+                errorNoTable: "No <table> found in this HTML file.",
+                errorNoCaption: "Column 'caption' not found in the table header.",
+                errorRead: "Error reading file.",
+                success: (count) => `Successfully extracted <b>${count}</b> items. Ready to download!`,
+                empty: "No captions found in the table rows."
+            },
+            fa: {
+                title: "استخراج کپشن از HTML",
+                subtitle: "به راحتی داده‌ها را از خروجی‌های Apify یا جداول HTML استخراج کنید.",
+                dropTitle: "فایل HTML را اینجا بکشید یا کلیک کنید",
+                dropSub: "پشتیبانی از فایل‌های .html",
+                btnExtract: "استخراج داده‌ها",
+                btnDownload: "دانلود فایل CSV",
+                footer: "پردازش سمت کاربر • بدون ارسال داده به سرور",
+                developedBy: "توسعه توسط",
+                btnLang: "English",
+                
+                // Messages
+                errorNoFile: "لطفاً ابتدا یک فایل انتخاب کنید.",
+                errorNoTable: "هیچ جدولی (table) در این فایل یافت نشد.",
+                errorNoCaption: "ستون 'caption' در سرستون‌های جدول پیدا نشد.",
+                errorRead: "خطا در خواندن فایل.",
+                success: (count) => `تعداد <b>${count}</b> مورد با موفقیت استخراج شد. آماده دانلود!`,
+                empty: "هیچ داده‌ای در جدول یافت نشد."
+            }
+        };
+
+        let currentLang = 'en';
+        let extractedCaptions = [];
+        
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        const extractBtn = document.getElementById('extractBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const outputDiv = document.getElementById('output');
+        const langBtn = document.getElementById('langBtn');
+
+        // Language Toggle
+        langBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'fa' : 'en';
+            const isFa = currentLang === 'fa';
+            
+            document.documentElement.dir = isFa ? 'rtl' : 'ltr';
+            document.documentElement.lang = currentLang;
+            document.body.classList.toggle('lang-fa', isFa);
+            
+            // Text Updates
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                el.innerText = translations[currentLang][key];
+            });
+
+            langBtn.innerText = translations[currentLang].btnLang;
+        });
+
+        // File Handling
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        
+        dropZone.addEventListener('dragenter', () => dropZone.classList.add('active'));
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', (e) => {
+            dropZone.classList.remove('active');
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        });
+
+        function handleFileSelect() {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = fileInput.files[0].name;
+                fileNameDisplay.classList.remove('hidden');
+                outputDiv.classList.add('hidden');
+                downloadBtn.classList.add('hidden');
+            }
+        }
+
+        // Logic
+        extractBtn.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus(translations[currentLang].errorNoFile, 'error');
+                return;
+            }
+
+            setLoading(true);
+            downloadBtn.classList.add('hidden');
+            extractedCaptions = [];
+
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(e.target.result, 'text/html');
+                    const table = doc.querySelector('table');
+                    
+                    if (!table) throw new Error("errorNoTable");
+
+                    // Flexible header search (case insensitive)
+                    const headers = Array.from(table.querySelectorAll('thead th, tr:first-child th, tr:first-child td'))
+                                         .map(th => th.textContent.trim().toLowerCase());
+                    
+                    const captionIndex = headers.findIndex(h => h.includes('caption') || h.includes('text') || h === 'c');
+                    
+                    if (captionIndex === -1) throw new Error("errorNoCaption");
+
+                    // Extract rows
+                    const rows = table.querySelectorAll('tbody tr'); // Try standard tbody first
+                    const dataRows = rows.length > 0 ? rows : table.querySelectorAll('tr:not(:first-child)'); // Fallback
+
+                    dataRows.forEach(row => {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length > captionIndex) {
+                            const text = cells[captionIndex].textContent.trim();
+                            if(text) extractedCaptions.push(text);
+                        }
+                    });
+
+                    if (extractedCaptions.length > 0) {
+                        showStatus(translations[currentLang].success(extractedCaptions.length), 'success');
+                        downloadBtn.classList.remove('hidden');
+                    } else {
+                        showStatus(translations[currentLang].empty, 'warning');
+                    }
+
+                } catch (err) {
+                    const msgKey = err.message in translations.en ? err.message : 'errorRead';
+                    showStatus(translations[currentLang][msgKey] || err.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (extractedCaptions.length === 0) return;
+            
+            let csvContent = "Caption\n";
+            extractedCaptions.forEach(cap => {
+                csvContent += `"${cap.replace(/"/g, '""')}"\n`;
+            });
+
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `captions_export_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        function showStatus(msg, type) {
+            outputDiv.innerHTML = msg;
+            outputDiv.className = 'mt-6 p-4 rounded-lg text-center text-sm block ';
+            if (type === 'error') outputDiv.classList.add('bg-red-50', 'text-red-600');
+            else if (type === 'success') outputDiv.classList.add('bg-green-50', 'text-green-600');
+            else outputDiv.classList.add('bg-yellow-50', 'text-yellow-600');
+        }
+
+        function setLoading(isLoading) {
+            extractBtn.disabled = isLoading;
+            if (isLoading) {
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+                extractBtn.innerHTML = '';
+                extractBtn.appendChild(spinner);
+            } else {
+                extractBtn.innerHTML = `<span data-key="btnExtract">${translations[currentLang].btnExtract}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
